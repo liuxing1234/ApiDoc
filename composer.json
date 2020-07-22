@@ -1,0 +1,13 @@
+{
+    "name": "apigenerator/callmelx",
+    "type": "n",
+    "license": "mit",
+    "minimum-stability": "dev",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "ApiGenerator\\": "src/"
+        }
+    }
+
+}
