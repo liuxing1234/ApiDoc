@@ -15,27 +15,51 @@ use ApiGenerator\config\Option;
 
 class Client
 {
-    public $opt = [];
-    public $dir = "";
+    protected $opt = [];
 
     public function __construct()
     {
-        $this->create();
-
+        $this->opt = Option::$scanArr;
     }
 
+    public function set($arr=[]){
+        if(is_array($arr)){
+            $this->opt = $arr;
+        }else{
+            return "不是数组";
+        }
+    }
+    /**
+     * 展示页面
+     */
+    public function show($type=1)
+    {
+        $info = $this->create();
+        if($type==2){
+            $path = __DIR__.DIRECTORY_SEPARATOR."view".DIRECTORY_SEPARATOR."tpl.php";///home/wwwroot/demo.com/src
+        }else{
+            $js = Option::$js;
+            $css = Option::$css;
+            $path = __DIR__.DIRECTORY_SEPARATOR."view".DIRECTORY_SEPARATOR."index.php";///home/wwwroot/demo.com/src
+            $static = __DIR__.DIRECTORY_SEPARATOR."static".DIRECTORY_SEPARATOR."layui";///home/wwwroot/demo.com/src
+        }
+
+        include_once $path;
+
+
+
+    }
     public function create()
     {
-        $list = Option::$scanArr;
+        $list = $this->opt;
         $finalArr = [];
         foreach($list as  $k=>$v)
         {
             $doc = $this->getDocs($k,$v);
-            $finalArr[] = $doc;
+            $finalArr[$k] = $doc;
         }
         return $finalArr;
     }
-
     /**
      * 获取汇总的日志
      */
@@ -45,48 +69,54 @@ class Client
         $this->scannerDir($dir,$np,$classArr);
         if($classArr){
             foreach($classArr as $v){
+
                 $doc = $this->extract($v);
-                array_push($docArr,$doc);
+                if($doc){
+                    array_push($docArr,$doc);
+                }
+
             }
             return $docArr;
         }else{
             die("该目录没有文件");
         }
     }
-
     /**
      * 抽离注释的
      */
     public function extract($objName)
     {
         $finalArr = [];
-        $obj = new $objName;
-        $reflection = new \ReflectionClass($obj);
-        //类的注释
-        $class_doc_str = $reflection->getDocComment();
-        $class_doc_arr = $this->match($class_doc_str);
+        try{
+            $reflection = new \ReflectionClass($objName);
+            $file_position = $reflection->getFileName();
+            //类的注释
+            $class_doc_str = $reflection->getDocComment();
+            $class_doc_arr = $this->match($class_doc_str);
 
-        $finalArr["name"] = $reflection->getName();
-        $finalArr["class_doc"] = $class_doc_arr;
+            $finalArr["name"] = $reflection->getName();
+            $finalArr["class_doc"] = $class_doc_arr;
+            $finalArr["file_position"] = $file_position;
 
-        $methods = $reflection->getMethods();
-        $method_res = [];
-        if($methods){
-            foreach($methods as $method){
-                //方法
-                $method_name = $method->name;
-                $method_doc  = $method->getDocComment();
-                $method_modifiers = $this->modifier($method);
-                $method_doc_arr   = $this->match($method_doc);
-                $method_res[$method_name] = compact("method_name","method_modifiers","method_doc_arr");
+            $methods = $reflection->getMethods();
+            $method_res = [];
+            if($methods){
+                foreach($methods as $method){
+                    //方法
+                    $method_name = $method->name;
+                    $method_doc  = $method->getDocComment();
+                    $method_modifiers = $this->modifier($method);
+                    $method_doc_arr   = $this->match($method_doc);
+                    $method_res[$method_name] = compact("method_name","method_modifiers","method_doc_arr");
+                }
             }
+            $finalArr["methods"]=$method_res;
+        }catch (\Throwable $e){
+            echo $e->getMessage();
         }
-
-        $finalArr["methods"]=$method_res;
         return $finalArr;
 
     }
-
     /**
      * 匹配match
      * @param string $doc
@@ -107,17 +137,56 @@ class Client
                 {
                     if(strpos($v, '@') === 0)
                     {
-
                         $v = trim($v,'@');
                         $temp = explode(" ",$v);
                         $temp = array_filter($temp);
                         $temp = array_values($temp);
-                        $tag = [
-                            "tag"=>$temp[0]?$temp[0]:"",
-                            "type"=>$temp[1]?$temp[1]:"",
-                            "var"=>$temp[2]?$temp[2]:"",
-                            "desc"=>$temp[3]?$temp[3]:""
-                        ];
+                        if(count($temp)==2){
+                            $tag = [
+                                "tag" =>isset($temp[0])?$temp[0]:"",
+                                "var" =>isset($temp[1])?$temp[1]:"",
+                                "type" =>"",
+                                "desc" =>"",
+                            ];
+                        }else{
+                            //PARAM STRING $DESC 描述
+                            //要对第二个类型进行检测
+                            $typeName = "";
+                            $tag = array_shift($temp);
+                            $type = array_shift($temp);
+                            $var =  array_shift($temp);
+                            $desc = implode(" ",$temp);
+
+                            switch($type){
+                                case "string":
+                                case "str":
+                                case "int":
+                                case "number":
+                                case "integer":
+                                case "bool":
+                                case "boolean":
+                                case "mix":
+                                case "mixed":
+                                case "object":
+                                case "obj":
+                                case "array":
+                                case "arr":
+                                    $typeName=$type;
+                                    break;
+                                default:
+                                    $typeName = "";
+                            }
+                            $tag = [
+                                "tag" =>isset($tag)?$tag:"",
+                                "type"=>isset($typeName)?$typeName:"",
+                                "var" =>isset($var)?$var:"",
+                                "desc"=>isset($desc)?$desc:""
+                            ];
+                        }
+
+                        // param miaoshu
+
+
                         $tags[] = $tag;
 
                     }else{
@@ -135,7 +204,6 @@ class Client
 
         return $docArr;
     }
-
     public function modifier($method)
     {
         $type = [];
@@ -196,4 +264,5 @@ class Client
 
         }
     }
+
 }
