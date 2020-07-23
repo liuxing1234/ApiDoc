@@ -14,7 +14,9 @@ $opt = [
     //需要扫描的目录,格式为namespace=>local,键为命名空间,值为文件夹所在位置,可以配置多个  
 ];
 $client->set($opt);
-$client->show();
+$client->show(); # 获取接口文档的展示页
+
+$client->create(); # 通过create可以获取指定目录下所有注释,返回为数组形式
 ```
 
 ## 3. 目录结构
