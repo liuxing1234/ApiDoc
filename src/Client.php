@@ -1,11 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Administrator
- * Date: 2020/6/23
- * Time: 11:17
- */
-
 namespace ApiGenerator;
 
 
